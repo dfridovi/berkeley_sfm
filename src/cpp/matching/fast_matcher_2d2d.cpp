@@ -35,12 +35,14 @@
  *          Erik Nelson            ( eanelson@eecs.berkeley.edu )
  */
 
-#include "naive_matcher_2d2d.h"
+#include "fast_matcher_2d2d.h"
+#include "../sfm/flann_descriptr_kdtree.h"
 
 namespace bsfm {
 
-  bool NaiveMatcher2D2D::MatchImagePair(int image_index1, int image_index2,
-                                        PairwiseImageMatch& image_match) {
+  // Match two images together by doing a nearest neighbor search.
+  bool FastMatcher2D2D::MatchImagePair(int image_index1, int image_index2,
+                                       PairwiseImageMatch& image_match) {
     image_match.feature_matches_.clear();
     image_match.descriptor_indices1_.clear();
     image_match.descriptor_indices2_.clear();
@@ -116,13 +118,15 @@ namespace bsfm {
     return true;
   }
 
-  void NaiveMatcher2D2D::ComputePutativeMatches(
+  // Compute putative matches between feature descriptors for an image pair.
+  // These might be removed later on due to e.g. not being symmetric, etc.
+  void FastMatcher2D2D::ComputePutativeMatches(
                             const std::vector<Descriptor>& descriptors1,
                             const std::vector<Descriptor>& descriptors2,
                             std::vector<LightFeatureMatch>& putative_matches) {
     putative_matches.clear();
 
-    // Get the singletone distance metric for descriptor comparison.
+    // Get the singleton distance metric for descriptor comparison.
     DistanceMetric& distance = DistanceMetric::Instance();
 
     // Set the maximum tolerable distance between descriptors, if applicable.
@@ -130,45 +134,36 @@ namespace bsfm {
       distance.SetMaximumDistance(options_.maximum_descriptor_distance);
     }
 
-    // Store all matches and their distances.
+    // Create a kd-tree to store descriptors2.
+    FlannDescriptorKDTree kdtree;
+    kdtree.AddDescriptors(descriptors2);
+
+    // Find two nearest neighbors for each descriptor in descriptors1 and apply
+    // Lowe's ratio test.
     for (size_t ii = 0; ii < descriptors1.size(); ++ii) {
-      LightFeatureMatchList one_way_matches;
-      for (size_t jj = 0; jj < descriptors2.size(); ++jj) {
-        double dist = distance(descriptors1[ii], descriptors2[jj]);
+      std::vector<int> nn_indices;
+      std::vector<double> nn_distances;
+      const unsigned int kNearestNeighbors = 2;
 
-        // If max distance was not set above, distance.Max() will be infinity and
-        // this will always be true.
-        if (dist < distance.Max()) {
-          one_way_matches.emplace_back(ii, jj, dist);
-        }
-      }
-
-      if (one_way_matches.empty()) {
+      if (!kdtree.NearestNeighbors(descriptors1[ii], kNearestNeighbors,
+                                   nn_indices, nn_distances)) {
+        VLOG(1) << "k nearest neighbor search failed. Continuing.";
         continue;
       }
 
-      if (one_way_matches.size() == 1) {
-        putative_matches.emplace_back(one_way_matches[0]);
+      // If max distance was not set above, distance.Max() will be infinity and
+      // this will always be true.
+      if (nn_distances[0] > distance.Max())
         continue;
-      }
 
-      // Sort by distance. We only care about the distances between the best 2
-      // matches for the Lowes ratio test, and about the best match if we are not
-      // using Lowes ratio.
-      std::partial_sort(one_way_matches.begin(),
-                        one_way_matches.begin() + 1,
-                        one_way_matches.end(),
-                        LightFeatureMatch::SortByDistance);
-
-      // Store the best match for this element of features2.
-      if (options_.use_lowes_ratio && one_way_matches.size() > 1) {
-        // The second best match must be within the lowes ratio of the best match.
-        if (one_way_matches[0].distance_ <
-            options_.lowes_ratio * one_way_matches[1].distance_) {
-          putative_matches.emplace_back(one_way_matches[0]);
+      // The second best match must be within the lowes ratio of the best match.
+      LightFeatureMatch match(ii, nn_indices[0], nn_distances[0]);
+      if (options_.use_lowes_ratio) {
+        if (nn_distances[0] < options_.lowes_ratio * nn_distances[1]) {
+          putative_matches.emplace_back(match);
         }
       } else {
-        putative_matches.emplace_back(one_way_matches[0]);
+        putative_matches.emplace_back(match);
       }
     }
   }

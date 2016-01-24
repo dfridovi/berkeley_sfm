@@ -70,8 +70,7 @@ namespace bsfm {
   private:
     DISALLOW_COPY_AND_ASSIGN(FastMatcher2D2D)
 
-    // Match two images together by doing a pairwise comparison of all of their
-    // individual feature descriptors.
+    // Match two images together by doing a nearest neighbor search.
     virtual bool MatchImagePair(int image_index1, int image_index2,
                                 PairwiseImageMatch& feature_matches);
 
