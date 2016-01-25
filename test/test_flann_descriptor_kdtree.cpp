@@ -78,7 +78,7 @@ TEST(FlannDescriptorKDTree, TestFlannDescriptorKDTree) {
   double min_distance = std::numeric_limits<double>::max();
   size_t min_distance_index = 0;
   for (size_t ii = 0; ii < descriptors.size(); ++ii) {
-    double distance = (descriptors[ii] - query).squaredNorm();
+    double distance = (descriptors[ii] - query).norm();
     if (distance < min_distance) {
       min_distance = distance;
       min_distance_index = ii;

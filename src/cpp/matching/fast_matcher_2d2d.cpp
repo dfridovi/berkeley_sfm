@@ -36,7 +36,8 @@
  */
 
 #include "fast_matcher_2d2d.h"
-#include "../sfm/flann_descriptr_kdtree.h"
+#include "../sfm/flann_descriptor_kdtree.h"
+#include <iostream>
 
 namespace bsfm {
 
@@ -130,13 +131,18 @@ namespace bsfm {
     DistanceMetric& distance = DistanceMetric::Instance();
 
     // Set the maximum tolerable distance between descriptors, if applicable.
+    // Note: here we only use this for checking distance.Max(), and use Flann's
+    // builtin L2 distance metric for actuall norm calculations.
     if (options_.enforce_maximum_descriptor_distance) {
       distance.SetMaximumDistance(options_.maximum_descriptor_distance);
     }
 
     // Create a kd-tree to store descriptors2.
     FlannDescriptorKDTree kdtree;
-    kdtree.AddDescriptors(descriptors2);
+    for (size_t ii = 0; ii < descriptors2.size(); ii++) {
+      Descriptor d = descriptors2[ii];
+      kdtree.AddDescriptor(d);
+    }
 
     // Find two nearest neighbors for each descriptor in descriptors1 and apply
     // Lowe's ratio test.
@@ -145,7 +151,8 @@ namespace bsfm {
       std::vector<double> nn_distances;
       const unsigned int kNearestNeighbors = 2;
 
-      if (!kdtree.NearestNeighbors(descriptors1[ii], kNearestNeighbors,
+      Descriptor d = descriptors1[ii];
+      if (!kdtree.NearestNeighbors(d, kNearestNeighbors,
                                    nn_indices, nn_distances)) {
         VLOG(1) << "k nearest neighbor search failed. Continuing.";
         continue;
@@ -153,11 +160,20 @@ namespace bsfm {
 
       // If max distance was not set above, distance.Max() will be infinity and
       // this will always be true.
-      if (nn_distances[0] > distance.Max())
+      if (nn_distances[0] > distance.Max()) {
         continue;
+      }
+
+      // Create a match.
+      LightFeatureMatch match(ii, nn_indices[0], nn_distances[0]);
+
+      // Check second best distance.
+      if (nn_distances[1] > distance.Max()) {
+        putative_matches.emplace_back(match);
+        continue;
+      }
 
       // The second best match must be within the lowes ratio of the best match.
-      LightFeatureMatch match(ii, nn_indices[0], nn_distances[0]);
       if (options_.use_lowes_ratio) {
         if (nn_distances[0] < options_.lowes_ratio * nn_distances[1]) {
           putative_matches.emplace_back(match);

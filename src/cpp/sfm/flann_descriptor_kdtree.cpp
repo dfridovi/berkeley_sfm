@@ -110,16 +110,16 @@ namespace bsfm {
     // If we found a nearest neighbor, assign output.
     if (num_neighbors_found > 0) {
       nn_index = query_match_indices[0][0];
-      nn_distance = query_distances[0][0];
+      nn_distance = std::sqrt(query_distances[0][0]);
     }
 
     return num_neighbors_found > 0;
   }
 
   // Queries the kd tree for the nearest neighbor of 'query'.
-  bool NearestNeighbors(Descriptor& query, unsigned int k,
-                        std::vector<int>& nn_indices,
-                        std::vector<double>& nn_distances) {
+  bool FlannDescriptorKDTree::NearestNeighbors(Descriptor& query, unsigned int k,
+                                               std::vector<int>& nn_indices,
+                                               std::vector<double>& nn_distances) {
     if (index_ == nullptr) {
       VLOG(1) << "Index has not been built. Descriptors must be added before "
               << "querying the kd tree.";
@@ -145,7 +145,7 @@ namespace bsfm {
     nn_distances.clear();
     for (size_t ii = 0; ii < num_neighbors_found; ii++) {
       nn_indices.push_back(query_match_indices[0][ii]);
-      nn_distance.push_back(query_distances[0][ii]);
+      nn_distances.push_back(std::sqrt(query_distances[0][ii]));
     }
 
     return num_neighbors_found == k;

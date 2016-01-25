@@ -36,6 +36,7 @@
  */
 
 #include "naive_matcher_2d2d.h"
+#include <iostream>
 
 namespace bsfm {
 
@@ -157,7 +158,7 @@ void NaiveMatcher2D2D::ComputePutativeMatches(
     // matches for the Lowes ratio test, and about the best match if we are not
     // using Lowes ratio.
     std::partial_sort(one_way_matches.begin(),
-                      one_way_matches.begin() + 1,
+                      one_way_matches.begin() + 2, /* not inclusive! */
                       one_way_matches.end(),
                       LightFeatureMatch::SortByDistance);
 
