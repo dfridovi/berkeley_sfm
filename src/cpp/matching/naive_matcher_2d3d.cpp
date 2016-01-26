@@ -208,7 +208,7 @@ void NaiveMatcher2D3D::ComputeOneWayMatches(
     // matches for the Lowes ratio test, and only care about the lowest distance
     // match if we are not using Lowes ratio.
     std::partial_sort(one_way_matches.begin(),
-                      one_way_matches.begin() + 1,
+                      one_way_matches.begin() + 2, /* not inclusive! */
                       one_way_matches.end(),
                       LightFeatureMatch::SortByDistance);
 
