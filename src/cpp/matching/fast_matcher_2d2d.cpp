@@ -167,13 +167,7 @@ namespace bsfm {
       // Create a match.
       LightFeatureMatch match(ii, nn_indices[0], nn_distances[0]);
 
-      // Check second best distance.
-      if (nn_distances[1] > distance.Max()) {
-        putative_matches.emplace_back(match);
-        continue;
-      }
-
-      // The second best match must be within the lowes ratio of the best match.
+      // The second best match must be within the Lowe's ratio of the best match.
       if (options_.use_lowes_ratio) {
         if (nn_distances[0] < options_.lowes_ratio * nn_distances[1]) {
           putative_matches.emplace_back(match);
