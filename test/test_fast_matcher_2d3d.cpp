@@ -39,7 +39,6 @@
 #include <camera/camera_extrinsics.h>
 #include <camera/camera_intrinsics.h>
 #include <matching/feature_matcher_options.h>
-#include <matching/naive_matcher_2d3d.h>
 #include <matching/fast_matcher_2d3d.h>
 #include <geometry/point_3d.h>
 #include <geometry/rotation.h>
@@ -107,7 +106,6 @@ namespace bsfm {
     std::vector<LandmarkIndex> CreateObservations(
         const std::vector<LandmarkIndex>& landmark_indices,
         ViewIndex view_index, unsigned int num_bad_matches) {
-
       // Get view.
       View::Ptr view = View::GetView(view_index);
       CHECK_NOTNULL(view.get());
@@ -188,7 +186,7 @@ namespace bsfm {
       // Match 2D features in the view to 3D landmarks.
       FeatureMatcherOptions options;
       options.min_num_feature_matches = projected_landmarks.size();
-      NaiveMatcher2D3D feature_matcher;
+      FastMatcher2D3D feature_matcher;
       EXPECT_TRUE(feature_matcher.Match(options, view->Index(), landmark_indices));
 
       // Iterate over all observations in the view and check that they are correctly
@@ -211,19 +209,19 @@ namespace bsfm {
 
   // Test with 1 to 1 correspondence between observations in the view and existing
   // landmarks.
-  TEST(NaiveMatcher2D3D, TestNaiveMatcher2D3DNoiseless) {
+  TEST(FastMatcher2D3D, TestFastMatcher2D3DNoiseless) {
     TestMatcher(0);
   }
 
   // Test with many to 1 correspondence between observations in the view and existing
   // landmarks.
-  TEST(NaiveMatcher2D3D, TestNaiveMatcher2D3DNoisy) {
+  TEST(FastMatcher2D3D, TestFastMatcher2D3DNoisy) {
     TestMatcher(0.5 * kNumLandmarks);
   }
 
   // Test with MANY to 1 correspondence between observations in the view and existing
   // landmarks.
-  TEST(NaiveMatcher2D3D, TestNaiveMatcher2D3DVeryNoisy) {
+  TEST(FastMatcher2D3D, TestFastMatcher2D3DVeryNoisy) {
     TestMatcher(1.0 * kNumLandmarks);
   }
 
