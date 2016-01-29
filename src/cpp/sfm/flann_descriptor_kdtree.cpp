@@ -63,8 +63,8 @@ namespace bsfm {
 
     // If this is the first point in the index, create the index and exit.
     if (index_ == nullptr) {
-      // Single kd-tree. No approximation.
-      const int kNumRandomizedKDTrees = 1;
+      // Use 4 randomized kd-trees.
+      const int kNumRandomizedKDTrees = 4;
       index_.reset(new flann::Index<flann::L2<double> >(
          flann_descriptor, flann::KDTreeIndexParams(kNumRandomizedKDTrees)));
       index_->buildIndex();
@@ -102,10 +102,11 @@ namespace bsfm {
     std::vector< std::vector<double> > query_distances;
 
     const int kOneNearestNeighbor = 1;
+    const int kNumChecks = 128;
     int num_neighbors_found =
       index_->knnSearch(flann_query, query_match_indices,
                         query_distances, kOneNearestNeighbor,
-                        flann::SearchParams(flann::FLANN_CHECKS_UNLIMITED));
+                        flann::SearchParams(kNumChecks));
 
     // If we found a nearest neighbor, assign output.
     if (num_neighbors_found > 0) {
@@ -135,10 +136,11 @@ namespace bsfm {
     std::vector< std::vector<double> > query_distances;
 
     const int kNearestNeighbors = k;
+    const int kNumChecks = 128;
     int num_neighbors_found =
       index_->knnSearch(flann_query, query_match_indices,
                         query_distances, kNearestNeighbors,
-                        flann::SearchParams(flann::FLANN_CHECKS_UNLIMITED));
+                        flann::SearchParams(kNumChecks));
 
     // If we found any nearest neighbors, assign output.
     nn_indices.clear();
