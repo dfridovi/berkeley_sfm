@@ -53,7 +53,7 @@ namespace bsfm {
     std::vector<Descriptor>& descriptors2 = image_descriptors_[image_index2];
 
     // Normalize descriptors if required by the distance metric.
-    DistanceMetric::Instance().SetMetric(options_.distance_metric);
+    DistanceMetric::Instance().SetMetric(options_.distance_metric, options_.matrix_file);
     DistanceMetric::Instance().MaybeNormalizeDescriptors(descriptors1);
     DistanceMetric::Instance().MaybeNormalizeDescriptors(descriptors2);
 

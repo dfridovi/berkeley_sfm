@@ -52,7 +52,7 @@ bool NaiveMatcher2D2D::MatchImagePair(
   std::vector<Descriptor>& descriptors2 = image_descriptors_[image_index2];
 
   // Normalize descriptors if required by the distance metric.
-  DistanceMetric::Instance().SetMetric(options_.distance_metric);
+  DistanceMetric::Instance().SetMetric(options_.distance_metric, options_.matrix_file);
   DistanceMetric::Instance().MaybeNormalizeDescriptors(descriptors1);
   DistanceMetric::Instance().MaybeNormalizeDescriptors(descriptors2);
 
@@ -63,6 +63,7 @@ bool NaiveMatcher2D2D::MatchImagePair(
   // Check that we got enough matches here. If we didn't, reverse matches won't
   // help us.
   if (light_feature_matches.size() < options_.min_num_feature_matches) {
+    std::cout << "insufficient matches." << std::endl;
     return false;
   }
 
@@ -74,6 +75,7 @@ bool NaiveMatcher2D2D::MatchImagePair(
   }
 
   if (light_feature_matches.size() < options_.min_num_feature_matches) {
+    std::cout << "insufficient symmetric matches" << std::endl;
     return false;
   }
 
@@ -168,7 +170,8 @@ void NaiveMatcher2D2D::ComputePutativeMatches(
       if (one_way_matches[0].distance_ <
           options_.lowes_ratio * one_way_matches[1].distance_) {
         putative_matches.emplace_back(one_way_matches[0]);
-      }
+      } else
+        std::cout << "failed lowe" << std::endl;
     } else {
       putative_matches.emplace_back(one_way_matches[0]);
     }

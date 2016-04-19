@@ -53,6 +53,8 @@
 #include "../util/disallow_copy_and_assign.h"
 #include "../util/types.h"
 
+using Eigen::MatrixXd;
+
 namespace bsfm {
 
 class DistanceMetric {
@@ -60,6 +62,7 @@ class DistanceMetric {
   // Possible metrics.
   enum Metric {
     SCALED_L2,
+    WARPED_L2,
     HAMMING
   };
 
@@ -67,10 +70,12 @@ class DistanceMetric {
   static DistanceMetric& Instance();
 
   // Set distance metric type.
-  void SetMetric(const Metric& metric = Metric::SCALED_L2);
+  void SetMetric(const Metric& metric = Metric::SCALED_L2,
+                 const std::string& matrix_file = std::string());
 
   // Set distance metric type from string.
-  void SetMetric(const std::string& metric = "SCALED_L2");
+  void SetMetric(const std::string& metric = "SCALED_L2",
+                 const std::string& matrix_file = std::string());
 
   // Set a maximum tolerable distance between two descriptors. This is not
   // required, but is useful for comparisons like:
@@ -113,8 +118,16 @@ class DistanceMetric {
   double GetHammingDistance(const Descriptor& descriptor1,
                             const Descriptor& descriptor2) const;
 
+  // Compute the warped L2 norm of the difference between the two descriptors,
+  // that is, compute (x - y)' A (x - y).
+  double GetWarpedL2Distance(const Descriptor& descriptor1,
+                             const Descriptor& descriptor2) const;
+
   // Normalize all input descriptor vectors.
   void NormalizeDescriptors(std::vector<Descriptor>& descriptors) const;
+
+  // Read in matrix from file.
+  bool ReadMatrix(const std::string& matrix_file);
 
   // The distance metric that will be used.
   Metric metric_;
@@ -123,6 +136,10 @@ class DistanceMetric {
   // std::numeric_limits<double>::max(), which would imply that all descriptors
   // match to one another.
   double maximum_distance_;
+
+  // A positive semidefinite matrix to warp the L2 norm. Only used if type
+  // is WARPED_L2.
+  MatrixXd A_;
 
 };  //\class DistanceMetric
 

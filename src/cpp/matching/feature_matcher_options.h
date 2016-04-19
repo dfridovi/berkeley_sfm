@@ -99,6 +99,8 @@ struct FeatureMatcherOptions {
   // matching/distance_metric.h.
   std::string distance_metric = "SCALED_L2";
 
+  // A file containing the SPD matrix for warped L2 matching.
+  std::string matrix_file = std::string();
 };  //\struct FeatureMatcherOptions
 
 }  //\namespace bsfm

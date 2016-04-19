@@ -36,97 +36,168 @@
  */
 
 #include "distance_metric.h"
+#include <file/csv_reader.h>
+
+#include <iostream>
 
 namespace bsfm {
 
-DistanceMetric& DistanceMetric::Instance() {
-  static DistanceMetric instance;
-  return instance;
-}
-
-void DistanceMetric::SetMetric(const Metric& metric) {
-  metric_ = metric;
-}
-
-void DistanceMetric::SetMetric(const std::string& metric) {
-  if (metric.compare("SCALED_L2") == 0) {
-    SetMetric(Metric::SCALED_L2);
-  } else if (metric.compare("HAMMING") == 0) {
-    SetMetric(Metric::HAMMING);
-  } else {
-    LOG(WARNING) << "Invalid distance metric. Setting to SCALED_L2.";
-    SetMetric(Metric::SCALED_L2);
+  DistanceMetric& DistanceMetric::Instance() {
+    static DistanceMetric instance;
+    return instance;
   }
-}
 
-void DistanceMetric::SetMaximumDistance(double maximum_distance) {
-  maximum_distance_ = maximum_distance;
-}
+  void DistanceMetric::SetMetric(const Metric& metric,
+                                 const std::string& matrix_file) {
+    metric_ = metric;
 
-double DistanceMetric::Max() const {
-  return maximum_distance_;
-}
+    // Maybe load matrix file.
+    if (metric == Metric::WARPED_L2) {
+      if (!ReadMatrix(matrix_file)) {
+        LOG(WARNING) << "Error loading matrix from file. Reverting to SCALED_L2.";
+        std::cout << "Invalid distance metric. Setting to SCALED_L2." << std::endl;
+       }
+    }
+  }
 
-double DistanceMetric::operator()(const Descriptor& descriptor1,
-                                  const Descriptor& descriptor2) {
-  double distance = 0.0;
-  switch (metric_) {
+  void DistanceMetric::SetMetric(const std::string& metric,
+                                 const std::string& matrix_file) {
+    if (metric.compare("SCALED_L2") == 0) {
+      SetMetric(Metric::SCALED_L2, matrix_file);
+    } else if (metric.compare("HAMMING") == 0) {
+      SetMetric(Metric::HAMMING, matrix_file);
+    } else if (metric.compare("WARPED_L2") == 0) {
+      SetMetric(Metric::WARPED_L2, matrix_file);
+    } else {
+      LOG(WARNING) << "Invalid distance metric. Setting to SCALED_L2.";
+      SetMetric(Metric::SCALED_L2);
+    }
+  }
+
+  void DistanceMetric::SetMaximumDistance(double maximum_distance) {
+    maximum_distance_ = maximum_distance;
+  }
+
+  double DistanceMetric::Max() const {
+    return maximum_distance_;
+  }
+
+  double DistanceMetric::operator()(const Descriptor& descriptor1,
+                                    const Descriptor& descriptor2) {
+    double distance = 0.0;
+    switch (metric_) {
     case SCALED_L2:
       distance = GetScaledL2Distance(descriptor1, descriptor2);
       break;
+    case WARPED_L2:
+      distance = GetWarpedL2Distance(descriptor1, descriptor2);
     case HAMMING:
       distance = GetHammingDistance(descriptor1, descriptor2);
       break;
-    // No default to catch incompatible types at compile time.
+      // No default to catch incompatible types at compile time.
+    }
+    return distance;
   }
-  return distance;
-}
 
-bool DistanceMetric::MaybeNormalizeDescriptors(
-    std::vector<Descriptor>& descriptors) const {
-  bool normalized = false;
-  switch (metric_) {
+  bool DistanceMetric::MaybeNormalizeDescriptors(
+          std::vector<Descriptor>& descriptors) const {
+    bool normalized = false;
+    switch (metric_) {
     case SCALED_L2:
       NormalizeDescriptors(descriptors);
       normalized = true;
       break;
+    case WARPED_L2:
+      break;
     case HAMMING:
       break;
-    // No default to catch incompatible types at compile time.
+      // No default to catch incompatible types at compile time.
+    }
+
+    return normalized;
   }
 
-  return normalized;
-}
+  bool DistanceMetric::ReadMatrix(const std::string& matrix_file) {
+    file::CsvReader reader(matrix_file);
+    if (!reader.IsOpen()) {
+      LOG(WARNING) << "Unable to open file.";
+      return false;
+    }
 
-// Hidden constructor.
-DistanceMetric::DistanceMetric()
+    std::vector< std::vector<std::string> > tokenized_lines;
+    if (!reader.ReadFile(&tokenized_lines)) {
+      LOG(WARNING) << "Unable to read file.";
+      return false;
+    }
+
+    size_t nrows;
+    nrows = tokenized_lines.size();
+    if (nrows == 0) {
+      LOG(WARNING) << "Matrix file improperly formatted.";
+      return false;
+    }
+
+    if (tokenized_lines[0].size() != nrows) {
+      LOG(WARNING) << "Dimensions do not match.";
+      return false;
+    }
+
+    A_.resize(nrows, nrows);
+    for (size_t ii = 0; ii < nrows; ii++) {
+      if (tokenized_lines[ii].size() != nrows) {
+        LOG(WARNING) << "Matrix file is improperly formatted.";
+        return false;
+      }
+
+      for (size_t jj = 0; jj < nrows; jj++) {
+        A_(ii, jj) = std::stod(tokenized_lines[ii][jj]);
+      }
+    }
+
+    return true;
+  }
+
+  // Hidden constructor.
+  DistanceMetric::DistanceMetric()
     : maximum_distance_(std::numeric_limits<double>::max()) {
-  SetMetric(Metric::SCALED_L2);
-}
-
-double DistanceMetric::GetScaledL2Distance(
-    const Descriptor& descriptor1, const Descriptor& descriptor2) const {
-  CHECK_EQ(descriptor1.size(), descriptor2.size());
-  return 1.0 - descriptor1.dot(descriptor2);
-}
-
-double DistanceMetric::GetHammingDistance(const Descriptor& descriptor1,
-                                          const Descriptor& descriptor2) const {
-  CHECK_EQ(descriptor1.size(), descriptor2.size());
-  int sum = 0;
-  for (size_t ii = 0; ii < descriptor1.size(); ++ii) {
-    unsigned char d1 = static_cast<unsigned char>(descriptor1(ii));
-    unsigned char d2 = static_cast<unsigned char>(descriptor2(ii));
-    sum += d1 ^ d2;
+    SetMetric(Metric::SCALED_L2);
   }
-  return static_cast<double>(sum);
-}
 
-void DistanceMetric::NormalizeDescriptors(
-    std::vector<Descriptor>& descriptors) const {
-  for (auto& descriptor : descriptors) {
-    descriptor.normalize();
+  double DistanceMetric::GetScaledL2Distance(
+            const Descriptor& descriptor1, const Descriptor& descriptor2) const {
+    CHECK_EQ(descriptor1.size(), descriptor2.size());
+    return 1.0 - descriptor1.dot(descriptor2);
   }
-}
+
+  double DistanceMetric::GetHammingDistance(const Descriptor& descriptor1,
+                                            const Descriptor& descriptor2) const {
+    CHECK_EQ(descriptor1.size(), descriptor2.size());
+    int sum = 0;
+    for (size_t ii = 0; ii < descriptor1.size(); ++ii) {
+      unsigned char d1 = static_cast<unsigned char>(descriptor1(ii));
+      unsigned char d2 = static_cast<unsigned char>(descriptor2(ii));
+      sum += d1 ^ d2;
+    }
+    return static_cast<double>(sum);
+  }
+
+  // Compute the warped L2 norm of the difference between the two descriptors,
+  // that is, compute (x - y)' A (x - y).
+  double DistanceMetric::GetWarpedL2Distance(const Descriptor& descriptor1,
+                                             const Descriptor& descriptor2) const {
+    CHECK_EQ(descriptor1.size(), descriptor2.size());
+    CHECK_EQ(descriptor1.size(), A_.rows());
+
+    Descriptor diff = descriptor1 - descriptor2;
+    return diff.transpose() * A_ * diff;
+  }
+
+
+  void DistanceMetric::NormalizeDescriptors(
+          std::vector<Descriptor>& descriptors) const {
+    for (auto& descriptor : descriptors) {
+      descriptor.normalize();
+    }
+  }
 
 }  //\namespace bsfm

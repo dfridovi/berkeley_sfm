@@ -95,7 +95,7 @@ namespace bsfm {
     }
 
     // Normalize descriptors if required by the distance metric.
-    DistanceMetric::Instance().SetMetric(options_.distance_metric);
+    DistanceMetric::Instance().SetMetric(options_.distance_metric, options_.matrix_file);
     DistanceMetric::Instance().MaybeNormalizeDescriptors(descriptors_2d);
     DistanceMetric::Instance().MaybeNormalizeDescriptors(descriptors_3d);
 

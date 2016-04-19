@@ -36,6 +36,7 @@
  */
 
 #include "feature_matcher.h"
+#include <iostream>
 
 namespace bsfm {
 
@@ -79,6 +80,7 @@ bool FeatureMatcher::MatchImages(const FeatureMatcherOptions& options,
       PairwiseImageMatch image_match;
       if (!MatchImagePair(ii, jj, image_match)) {
         VLOG(1) << "Could not match image " << ii << " to image " << jj << ".";
+        std::cout << "oops" << std::endl;
         continue;
       }
 
